@@ -28,5 +28,6 @@ If you need to support multipe virtual hosts for a container, you can separate e
 ### Access Limitation
 
 To limit access to your container you can add the VIRTUAL_ALLOW environment variable:
+
     $ docker run -e VIRTUAL_HOST=foo.bar.com -e VIRTUAL_ALLOW=192.168.1.2,192.168.2.0/24 ...
 
