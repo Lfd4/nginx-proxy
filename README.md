@@ -24,3 +24,9 @@ If your container exposes multiple ports, nginx-proxy will default to the servic
 ### Multiple Hosts
 
 If you need to support multipe virtual hosts for a container, you can separate each enty with commas.  For example, `foo.bar.com,baz.bar.com,bar.com` and each host will be setup the same.
+
+### Access Limitation
+
+To limit access to your container you can add the VIRTUAL_ALLOW environment variable:
+    $ docker run -e VIRTUAL_HOST=foo.bar.com -e VIRTUAL_ALLOW=192.168.1.2,192.168.2.0/24 ...
+
