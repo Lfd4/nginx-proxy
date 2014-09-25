@@ -52,6 +52,14 @@ server {
 		proxy_pass http://{{ $host }};
 		include /etc/nginx/proxy_params;
 
+              {{ $firstContainer := index $containers 0 }}
+              {{ if $firstContainer.Env.VIRTUAL_ALLOW }}
+              {{ range $i, $allowed := split $firstContainer.Env.VIRTUAL_ALLOW "," }}
+              allow {{ $allowed }};
+              {{ end }}
+              deny all;
+              {{ end }}
+
 		# HTTP 1.1 support
 		proxy_http_version 1.1;
 		proxy_set_header Connection "";
