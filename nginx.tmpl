@@ -113,6 +113,9 @@ server {
 		{{ end }}
 		deny all;
 	{{ end }}
+	{{ if $firstContainer.Env.VIRTUAL_ADD_SCONF }}
+		{{ $firstContainer.Env.VIRTUAL_ADD_SCONF }}
+	{{ end }}	  
 }
 {{ else }}
 
@@ -130,6 +133,9 @@ server {
 		{{ end }}
 		deny all;
 	{{ end }}
+	{{ if $firstContainer.Env.VIRTUAL_ADD_SCONF }}
+		{{ $firstContainer.Env.VIRTUAL_ADD_SCONF }}
+	{{ end }}	  
 }
 
 server {

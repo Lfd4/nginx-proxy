@@ -31,6 +31,12 @@ To limit access to your container you can add the VIRTUAL_ALLOW environment vari
 
     $ docker run -e VIRTUAL_HOST=foo.bar.com -e VIRTUAL_ALLOW=192.168.1.2,192.168.2.0/24 ...
 
+### Addional Configuration 
+
+To add additional configuration to the virtual host server definition add the VIRTUAL_ADD_SCONF environment variable:
+
+    $ docker run -e VIRTUAL_HOST=foo.bar.com -e VIRTUAL_ADD_SCONF="chunked_transfer_encoding on;" 
+
 ### Separate Containers
 
 nginx-proxy can also be run as two separate containers using the [jwilder/docker-gen](https://index.docker.io/u/jwilder/docker-gen/)
