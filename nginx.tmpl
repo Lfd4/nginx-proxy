@@ -71,6 +71,9 @@ upstream {{ $host }} {
 {{/* Get the VIRTUAL_PROTO defined by containers w/ the same vhost, falling back to "http" */}}
 {{ $proto := or (first (groupByKeys $containers "Env.VIRTUAL_PROTO")) "http" }}
 
+{{/* Get redirect behaviour defined by containers w/ the same vhost, falling back to redirecting to https */}}
+{{ $sslRedirect := (first (groupByKeys $containers "Env.SSL_REDIRECT")) "yes" }}
+
 {{/* Get the first cert name defined by containers w/ the same vhost */}}
 {{ $certName := (first (groupByKeys $containers "Env.CERT_NAME")) }}
 
@@ -86,10 +89,12 @@ upstream {{ $host }} {
 
 {{ if (and (ne $cert "") (exists (printf "/etc/nginx/certs/%s.crt" $cert)) (exists (printf "/etc/nginx/certs/%s.key" $cert))) }}
 
+{{ if (eq $sslRedirect "yes") }}
 server {
 	server_name {{ $host }};
 	return 301 https://$host$request_uri;
 }
+{{end}}
 
 server {
 	server_name {{ $host }};
