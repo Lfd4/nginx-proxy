@@ -89,6 +89,10 @@ upstream {{ $host }} {
 
 {{ $enabledSSL := (and (ne $cert "") (exists (printf "/etc/nginx/certs/%s.crt" $cert)) (exists (printf "/etc/nginx/certs/%s.key" $cert))) }}
 
+{{ $virtualAllow := or (first (groupByKeys $containers "Env.VIRTUAL_ALLOW")) "" }}
+
+{{ $virtualAddSconf := or (first (groupByKeys $containers "Env.VIRTUAL_ADD_SCONF")) "" }}
+
 {{ if (and $enabledSSL (eq $sslRedirect "yes")) }}
 server {
 	server_name {{ $host }};
@@ -128,16 +132,13 @@ server {
 		{{ end }}
 	}
 
-	{{ $firstContainer := index $containers 0 }}
-	{{ if $firstContainer.Env.VIRTUAL_ALLOW }}
-		{{ range $i, $allowed := split $firstContainer.Env.VIRTUAL_ALLOW "," }}
+	{{ if $virtualAllow }}
+		{{ range $i, $allowed := split $virtualAllow "," }}
 			allow {{ $allowed }};
 		{{ end }}
 		deny all;
 	{{ end }}
-	{{ if $firstContainer.Env.VIRTUAL_ADD_SCONF }}
-		{{ $firstContainer.Env.VIRTUAL_ADD_SCONF }}
-	{{ end }}	  
+	{{ $virtualAddSconf }}
 }
 
 {{ if (and (not $enabledSSL) (exists "/etc/nginx/certs/default.crt") (exists "/etc/nginx/certs/default.key")) }}
