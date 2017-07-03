@@ -143,6 +143,9 @@ upstream {{ $upstream_name }} {
 {{/* Get the VIRTUAL_PROTO defined by containers w/ the same vhost, falling back to "http" */}}
 {{ $proto := trim (or (first (groupByKeys $containers "Env.VIRTUAL_PROTO")) "http") }}
 
+{{ $virtualAllow := or (first (groupByKeys $containers "Env.VIRTUAL_ALLOW")) "" }}
+{{ $virtualAddSconf := or (first (groupByKeys $containers "Env.VIRTUAL_ADD_SCONF")) "" }}
+
 {{/* Get the HTTPS_METHOD defined by containers w/ the same vhost, falling back to "redirect" */}}
 {{ $https_method := or (first (groupByKeys $containers "Env.HTTPS_METHOD")) "redirect" }}
 
@@ -226,6 +229,13 @@ server {
                 include /etc/nginx/vhost.d/default_location;
                 {{ end }}
 	}
+	{{ if $virtualAllow }}
+	   {{ range $i, $allowed := split $virtualAllow "," }}
+      	      allow {{ $allowed }};
+	   {{ end }}
+       	   deny all;
+	{{ end }}
+	{{ $virtualAddSconf }}
 }
 
 {{ end }}
@@ -263,6 +273,13 @@ server {
                 include /etc/nginx/vhost.d/default_location;
                 {{ end }}
 	}
+	{{ if $virtualAllow }}
+	   {{ range $i, $allowed := split $virtualAllow "," }}
+      	      allow {{ $allowed }};
+	   {{ end }}
+       	   deny all;
+	{{ end }}
+	{{ $virtualAddSconf }}
 }
 
 {{ if (and (not $is_https) (exists "/etc/nginx/certs/default.crt") (exists "/etc/nginx/certs/default.key")) }}
