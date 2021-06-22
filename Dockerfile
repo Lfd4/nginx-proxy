@@ -46,8 +46,44 @@ LABEL maintainer="Nicolas Duchon <nicolas.duchon@gmail.com> (@buchdag)"
 RUN apt-get update \
  && apt-get install -y -q --no-install-recommends \
     ca-certificates \
-    wget \
- && apt-get clean \
+    wget
+# Build modsecurity nginx module
+RUN apt update \
+    && apt install --no-install-recommends -y \
+       git \
+       make \
+       build-essential automake
+RUN git clone https://github.com/SpiderLabs/ModSecurity.git
+RUN apt install -y --no-install-recommends libtool libyajl-dev \
+    libgeoip-dev libtool dh-autoreconf libcurl4-gnutls-dev libxml2 libpcre++-dev \
+    libxml2-dev liblmdb-dev \
+    libfuzzy-dev g++ flex bison curl doxygen 
+RUN apt install -y --no-install-recommends pkgconf liblua5.3-dev
+WORKDIR /ModSecurity
+RUN git checkout ${MODSECURITY_VERSION}
+RUN git submodule init
+RUN git submodule update
+RUN ./build.sh
+RUN ./configure
+RUN make -j4
+RUN make install
+WORKDIR /
+RUN apt-get install -y --no-install-recommends zlib1g-dev procps
+RUN git clone --depth 1 https://github.com/SpiderLabs/ModSecurity-nginx.git
+RUN wget http://nginx.org/download/nginx-1.19.10.tar.gz
+RUN tar xf nginx-1.19.10.tar.gz
+WORKDIR nginx-1.19.10
+RUN ./configure --with-compat --add-dynamic-module=../ModSecurity-nginx
+RUN make modules
+RUN cp objs/ngx_http_modsecurity_module.so /etc/nginx/modules
+RUN mkdir /etc/nginx/modsec \
+ && wget -P /etc/nginx/modsec/ https://raw.githubusercontent.com/SpiderLabs/ModSecurity/v3/master/modsecurity.conf-recommended \
+ && mv /etc/nginx/modsec/modsecurity.conf-recommended /etc/nginx/modsec/modsecurity.conf \
+ && cp /ModSecurity/unicode.mapping /etc/nginx/modsec \
+ && sed -i 's/SecRuleEngine DetectionOnly/SecRuleEngine On/' /etc/nginx/modsec/modsecurity.conf \
+ && sed -iE '/\/var\/run\/nginx.pid;/a load_module modules/ngx_http_modsecurity_module.so;' /etc/nginx/nginx.conf
+ADD modsec_main.conf /etc/nginx/modsec/main.conf
+RUN apt-get clean \
  && rm -r /var/lib/apt/lists/*
 
 
