@@ -39,8 +39,7 @@ RUN go get -v ./... && \
    CGO_ENABLED=0 GOOS=linux go build -o forego .
 
 # Build the final image
-FROM nginx:1.19.10
-LABEL maintainer="Nicolas Duchon <nicolas.duchon@gmail.com> (@buchdag)"
+FROM nginx:1.19.10 as modsecbuild
 
 # Install wget and install/updates certificates
 RUN apt-get update \
@@ -86,6 +85,32 @@ ADD modsec_main.conf /etc/nginx/modsec/main.conf
 RUN apt-get clean \
  && rm -r /var/lib/apt/lists/*
 
+# Build the final image
+FROM nginx:1.19.10
+LABEL maintainer="Andreas Elvers <andreas.elvers@lfda.de> (@buchdag)"
+
+# copy modsec build
+
+COPY --from=modsecbuild /nginx-1.19.10/objs/ngx_http_modsecurity_module.so /etc/nginx/modules/
+COPY --from=modsecbuild /ModSecurity/unicode.mapping /etc/nginx/modsec/unicode.mapping
+COPY --from=modsecbuild /usr/local/modsecurity/lib/libmodsecurity.so.3 /usr/local/modsecurity/lib/libmodsecurity.so.3
+
+# Install dependencies
+
+RUN apt-get update \
+ && apt-get install -y -q --no-install-recommends \
+    ca-certificates \
+    wget libyajl2 libgeoip1 libcurl3-gnutls libxml2 libpcre++ libxml2 liblmdb0 \
+    libfuzzy2 liblua5.3 zlib1g \
+ && wget -P /etc/nginx/modsec/ https://raw.githubusercontent.com/SpiderLabs/ModSecurity/v3/master/modsecurity.conf-recommended \
+ && mv /etc/nginx/modsec/modsecurity.conf-recommended /etc/nginx/modsec/modsecurity.conf \
+ && sed -i 's/SecRuleEngine DetectionOnly/SecRuleEngine On/' /etc/nginx/modsec/modsecurity.conf \
+ && sed -iE '/\/var\/run\/nginx.pid;/a load_module modules/ngx_http_modsecurity_module.so;' /etc/nginx/nginx.conf \
+ && apt-get clean \
+ && rm -r /var/lib/apt/lists/*
+
+# add modsec conf
+ADD modsec_main.conf /etc/nginx/modsec/main.conf
 
 # Configure Nginx and apply fix for very long server names
 RUN echo "daemon off;" >> /etc/nginx/nginx.conf \
