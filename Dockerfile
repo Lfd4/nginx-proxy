@@ -101,11 +101,14 @@ RUN apt-get update \
  && apt-get install -y -q --no-install-recommends \
     ca-certificates \
     wget libyajl2 libgeoip1 libcurl3-gnutls libxml2 libpcre++ libxml2 liblmdb0 \
-    libfuzzy2 liblua5.3 zlib1g \
+    libfuzzy2 liblua5.3 zlib1g vim \
  && wget -P /etc/nginx/modsec/ https://raw.githubusercontent.com/SpiderLabs/ModSecurity/v3/master/modsecurity.conf-recommended \
  && mv /etc/nginx/modsec/modsecurity.conf-recommended /etc/nginx/modsec/modsecurity.conf \
  && sed -i 's/SecRuleEngine DetectionOnly/SecRuleEngine On/' /etc/nginx/modsec/modsecurity.conf \
  && sed -iE '/\/var\/run\/nginx.pid;/a load_module modules/ngx_http_modsecurity_module.so;' /etc/nginx/nginx.conf \
+ && mkdir /etc/nginx/modsec/crs && cd /etc/nginx/modsec/crs \
+ && cd /etc/nginx/modsec/crs && curl -L https://github.com/coreruleset/coreruleset/archive/refs/tags/v3.3.0.tar.gz | tar --strip-components 1 -xz \
+ && for src in $(find * -name "*.example"); do dst=$(echo $src|cut -f 1-2 -d '.'); mv $src $dst; done \
  && apt-get clean \
  && rm -r /var/lib/apt/lists/*
 
