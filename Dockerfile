@@ -1,16 +1,16 @@
 # setup build arguments for version of dependencies to use
-ARG DOCKER_GEN_VERSION=0.7.6
-ARG FOREGO_VERSION=0.16.1
+ARG DOCKER_GEN_VERSION=0.10.2
+ARG FOREGO_VERSION=v0.17.0
 
 # Use a specific version of golang to build both binaries
-FROM golang:1.15.10 as gobuilder
+FROM golang:1.20.2 as gobuilder
 
 # Build docker-gen from scratch
 FROM gobuilder as dockergen
 
 ARG DOCKER_GEN_VERSION
 
-RUN git clone https://github.com/jwilder/docker-gen \
+RUN git clone https://github.com/nginx-proxy/docker-gen \
    && cd /go/docker-gen \
    && git -c advice.detachedHead=false checkout $DOCKER_GEN_VERSION \
    && go mod download \
@@ -21,25 +21,22 @@ RUN git clone https://github.com/jwilder/docker-gen \
    && rm -rf /go/docker-gen
 
 # Build forego from scratch
-# Because this relies on golang workspaces, we need to use go < 1.8. 
 FROM gobuilder as forego
 
-# Download the sources for the given version
 ARG FOREGO_VERSION
-ADD https://github.com/jwilder/forego/archive/v${FOREGO_VERSION}.tar.gz sources.tar.gz
 
-# Move the sources into the right directory
-RUN tar -xzf sources.tar.gz && \
-   mkdir -p /go/src/github.com/ddollar/ && \
-   mv forego-* /go/src/github.com/ddollar/forego
-
-# Install the dependencies and make the forego executable
-WORKDIR /go/src/github.com/ddollar/forego/
-RUN go get -v ./... && \
-   CGO_ENABLED=0 GOOS=linux go build -o forego .
+RUN git clone https://github.com/nginx-proxy/forego/ \
+   && cd /go/forego \
+   && git -c advice.detachedHead=false checkout $FOREGO_VERSION \
+   && go mod download \
+   && CGO_ENABLED=0 GOOS=linux go build -o forego . \
+   && go clean -cache \
+   && mv forego /usr/local/bin/ \
+   && cd - \
+   && rm -rf /go/forego
 
 # Build the final image
-FROM nginx:1.19.10 as modsecbuild
+FROM nginx:1.23.3 as modsecbuild
 
 # Install wget and install/updates certificates
 RUN apt-get update \
@@ -69,9 +66,9 @@ RUN make install
 WORKDIR /
 RUN apt-get install -y --no-install-recommends zlib1g-dev procps
 RUN git clone --depth 1 https://github.com/SpiderLabs/ModSecurity-nginx.git
-RUN wget http://nginx.org/download/nginx-1.19.10.tar.gz
-RUN tar xf nginx-1.19.10.tar.gz
-WORKDIR nginx-1.19.10
+RUN wget http://nginx.org/download/nginx-1.23.3.tar.gz
+RUN tar xf nginx-nginx:1.23.3.tar.gz
+WORKDIR nginx-1.23.3
 RUN ./configure --with-compat --add-dynamic-module=../ModSecurity-nginx
 RUN make modules
 RUN cp objs/ngx_http_modsecurity_module.so /etc/nginx/modules
@@ -86,7 +83,16 @@ RUN apt-get clean \
  && rm -r /var/lib/apt/lists/*
 
 # Build the final image
-FROM nginx:1.19.10
+FROM nginx:1.23.3
+
+ARG NGINX_PROXY_VERSION
+# Add DOCKER_GEN_VERSION environment variable
+# Because some external projects rely on it
+ARG DOCKER_GEN_VERSION
+ENV NGINX_PROXY_VERSION=${NGINX_PROXY_VERSION} \
+   DOCKER_GEN_VERSION=${DOCKER_GEN_VERSION} \
+   DOCKER_HOST=unix:///tmp/docker.sock
+
 LABEL maintainer="Andreas Elvers <andreas.elvers@lfda.de> (@buchdag)"
 
 # copy modsec build
@@ -115,28 +121,20 @@ RUN apt-get update \
 # add modsec conf
 ADD modsec_main.conf /etc/nginx/modsec/main.conf
 
-# Configure Nginx and apply fix for very long server names
+# Configure Nginx
 RUN echo "daemon off;" >> /etc/nginx/nginx.conf \
- && sed -i 's/worker_processes  1/worker_processes  auto/' /etc/nginx/nginx.conf \
- && sed -i 's/worker_connections  1024/worker_connections  10240/' /etc/nginx/nginx.conf
+   && sed -i 's/worker_processes  1/worker_processes  auto/' /etc/nginx/nginx.conf \
+   && sed -i 's/worker_connections  1024/worker_connections  10240/' /etc/nginx/nginx.conf \
+   && mkdir -p '/etc/nginx/dhparam'
 
 # Install Forego + docker-gen
-COPY --from=forego /go/src/github.com/ddollar/forego/forego /usr/local/bin/forego
+COPY --from=forego /usr/local/bin/forego /usr/local/bin/forego
 COPY --from=dockergen /usr/local/bin/docker-gen /usr/local/bin/docker-gen
-
-# Add DOCKER_GEN_VERSION environment variable
-# Because some external projects rely on it
-ARG DOCKER_GEN_VERSION
-ENV DOCKER_GEN_VERSION=${DOCKER_GEN_VERSION}
 
 COPY network_internal.conf /etc/nginx/
 
-COPY . /app/
+COPY app nginx.tmpl LICENSE /app/
 WORKDIR /app/
-
-ENV DOCKER_HOST unix:///tmp/docker.sock
-
-VOLUME ["/etc/nginx/certs", "/etc/nginx/dhparam"]
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["forego", "start", "-r"]

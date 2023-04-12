@@ -1,5 +1,3 @@
-import pytest
-
 def test_arbitrary_headers_are_passed_on(docker_compose, nginxproxy):
     r = nginxproxy.get("http://web.nginx-proxy.tld/headers", headers={'Foo': 'Bar'})
     assert r.status_code == 200
@@ -30,6 +28,19 @@ def test_X_Forwarded_Proto_is_passed_on(docker_compose, nginxproxy):
     r = nginxproxy.get("http://web.nginx-proxy.tld/headers", headers={'X-Forwarded-Proto': 'f00'})
     assert r.status_code == 200
     assert "X-Forwarded-Proto: f00\n" in r.text
+
+
+##### Testing the handling of X-Forwarded-Host #####
+
+def test_X_Forwarded_Host_is_generated(docker_compose, nginxproxy):
+    r = nginxproxy.get("http://web.nginx-proxy.tld/headers")
+    assert r.status_code == 200
+    assert "X-Forwarded-Host: web.nginx-proxy.tld\n" in r.text
+
+def test_X_Forwarded_Host_is_passed_on(docker_compose, nginxproxy):
+    r = nginxproxy.get("http://web.nginx-proxy.tld/headers", headers={'X-Forwarded-Host': 'example.com'})
+    assert r.status_code == 200
+    assert "X-Forwarded-Host: example.com\n" in r.text
 
 
 ##### Testing the handling of X-Forwarded-Port #####
@@ -78,4 +89,24 @@ def test_httpoxy_safe(docker_compose, nginxproxy):
     r = nginxproxy.get("http://web.nginx-proxy.tld/headers", headers={'Proxy': 'tcp://some.hacker.com'})
     assert r.status_code == 200
     assert "Proxy:" not in r.text
-    
+
+
+def test_no_host_server_tokens_off(docker_compose, nginxproxy):
+    ip = nginxproxy.get_ip()
+    r = nginxproxy.get(f"http://{ip}/headers")
+    assert r.status_code == 503
+    assert r.headers["Server"] == "nginx"
+
+
+def test_server_tokens_on(docker_compose, nginxproxy):
+    r = nginxproxy.get("http://web.nginx-proxy.tld/headers")
+    assert r.status_code == 200
+    assert "Host: web.nginx-proxy.tld" in r.text
+    assert r.headers["Server"].startswith("nginx/")
+
+
+def test_server_tokens_off(docker_compose, nginxproxy):
+    r = nginxproxy.get("http://web-server-tokens-off.nginx-proxy.tld/headers")
+    assert r.status_code == 200
+    assert "Host: web-server-tokens-off.nginx-proxy.tld" in r.text
+    assert r.headers["Server"] == "nginx"

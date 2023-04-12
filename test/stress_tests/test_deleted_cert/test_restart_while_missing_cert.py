@@ -11,7 +11,6 @@ script_dir = os.path.dirname(__file__)
 
 pytestmark = pytest.mark.xfail()  # TODO delete this marker once those issues are fixed
 
-
 @pytest.fixture(scope="module", autouse=True)
 def certs():
     """

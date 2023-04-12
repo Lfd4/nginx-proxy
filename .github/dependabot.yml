@@ -1,11 +1,22 @@
 version: 2
 updates:
-
   # Maintain dependencies for Docker
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "daily"
+    commit-message:
+      prefix: "build"
     labels:
-      - "area/chore"
-      - "area/dockerfile"
+      - "type/build"
+      - "scope/dockerfile"
+
+  # Maintain Python dependencies (test suite)
+  - package-ecosystem: "pip"
+    directory: "/test/requirements"
+    schedule:
+      interval: "daily"
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "type/ci"
