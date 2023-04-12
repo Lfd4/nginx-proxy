@@ -67,7 +67,7 @@ WORKDIR /
 RUN apt-get install -y --no-install-recommends zlib1g-dev procps
 RUN git clone --depth 1 https://github.com/SpiderLabs/ModSecurity-nginx.git
 RUN wget http://nginx.org/download/nginx-1.23.3.tar.gz
-RUN tar xf nginx-nginx:1.23.3.tar.gz
+RUN tar xf nginx-1.23.3.tar.gz
 WORKDIR nginx-1.23.3
 RUN ./configure --with-compat --add-dynamic-module=../ModSecurity-nginx
 RUN make modules
@@ -97,7 +97,7 @@ LABEL maintainer="Andreas Elvers <andreas.elvers@lfda.de> (@buchdag)"
 
 # copy modsec build
 
-COPY --from=modsecbuild /nginx-1.19.10/objs/ngx_http_modsecurity_module.so /etc/nginx/modules/
+COPY --from=modsecbuild /nginx-1.23.3/objs/ngx_http_modsecurity_module.so /etc/nginx/modules/
 COPY --from=modsecbuild /ModSecurity/unicode.mapping /etc/nginx/modsec/unicode.mapping
 COPY --from=modsecbuild /usr/local/modsecurity/lib/libmodsecurity.so.3 /usr/local/modsecurity/lib/libmodsecurity.so.3
 

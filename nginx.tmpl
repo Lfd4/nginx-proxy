@@ -208,6 +208,18 @@
         include /etc/nginx/vhost.d/default_location;
         {{- end }}
     }
+    {{- if $virtualAllow }}
+        {{- range $i, $allowed := split $virtualAllow "," }}
+            allow {{ $allowed }};
+        {{- end }}
+        deny all;
+    {{- end }}
+    {{- $virtualAddSconf }}
+
+    {{- if $modsecRuleset }}
+            modsecurity on;
+            modsecurity_rules_file /etc/nginx/modsec/main.conf;
+    {{- end }}
     {{- end }}
 {{- end }}
 
@@ -367,6 +379,9 @@ server {
          */}}
     {{- $server_tokens := trim (or (first (groupByKeys $containers "Env.SERVER_TOKENS")) "") }}
 
+    {{- $virtualAllow := or (first (groupByKeys $containers "Env.VIRTUAL_ALLOW")) "" }}  
+    {{- $virtualAddSconf := or (first (groupByKeys $containers "Env.VIRTUAL_ADD_SCONF")) "" }}
+    {{- $modsecRuleset := or (first (groupByKeys $containers "Env.MODSEC_RULESET")) "" }}
 
     {{- /*
          * Get the HTTPS_METHOD defined by containers w/ the same vhost, falling
