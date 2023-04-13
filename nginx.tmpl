@@ -208,15 +208,15 @@
         include /etc/nginx/vhost.d/default_location;
         {{- end }}
     }
-    {{- if $virtualAllow }}
-        {{- range $i, $allowed := split $virtualAllow "," }}
+    {{- if .VirtualAllow }}
+        {{- range $i, $allowed := split .VirtualAllow "," }}
             allow {{ $allowed }};
         {{- end }}
         deny all;
     {{- end }}
-    {{- $virtualAddSconf }}
+    {{- .VirtualSConf }}
 
-    {{- if $modsecRuleset }}
+    {{- if .ModsecRuleset }}
             modsecurity on;
             modsecurity_rules_file /etc/nginx/modsec/main.conf;
     {{- end }}
@@ -379,10 +379,6 @@ server {
          */}}
     {{- $server_tokens := trim (or (first (groupByKeys $containers "Env.SERVER_TOKENS")) "") }}
 
-    {{- $virtualAllow := or (first (groupByKeys $containers "Env.VIRTUAL_ALLOW")) "" }}  
-    {{- $virtualAddSconf := or (first (groupByKeys $containers "Env.VIRTUAL_ADD_SCONF")) "" }}
-    {{- $modsecRuleset := or (first (groupByKeys $containers "Env.MODSEC_RULESET")) "" }}
-
     {{- /*
          * Get the HTTPS_METHOD defined by containers w/ the same vhost, falling
          * back to "redirect".
@@ -516,6 +512,9 @@ server {
              * vhost-vpath, falling back to "http".
              */}}
         {{- $proto := trim (or (first (groupByKeys $containers "Env.VIRTUAL_PROTO")) "http") }}
+        {{- $virtualAllow := or (first (groupByKeys $containers "Env.VIRTUAL_ALLOW")) "" }}  
+        {{- $virtualAddSconf := or (first (groupByKeys $containers "Env.VIRTUAL_ADD_SCONF")) "" }}
+        {{- $modsecRuleset := or (first (groupByKeys $containers "Env.MODSEC_RULESET")) "" }}
 
         {{- /*
              * Get the NETWORK_ACCESS defined by containers w/ the same vhost,
@@ -529,7 +528,7 @@ server {
             {{- $upstream = printf "%s-%s" $upstream $sum }}
             {{- $dest = (or (first (groupByKeys $containers "Env.VIRTUAL_DEST")) "") }}
         {{- end }}
-        {{- template "location" (dict "Path" $path "Proto" $proto "Upstream" $upstream "Host" $host "VhostRoot" $vhost_root "Dest" $dest "NetworkTag" $network_tag) }}
+        {{- template "location" (dict "Path" $path "Proto" $proto "Upstream" $upstream "Host" $host "VhostRoot" $vhost_root "Dest" $dest "NetworkTag" $network_tag "VirtualAllow" $virtualAllow "VirtualSConf" $virtualAddSconf "ModsecRuleset" $modsecRuleset) }}
     {{- end }}
     {{- if and (not (contains $paths "/")) (ne $globals.default_root_response "none")}}
     location / {
